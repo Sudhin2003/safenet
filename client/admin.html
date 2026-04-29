@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+
+    <style>
+    @keyframes blink {
+        50% { opacity: 0; }
+    }
+    </style>
+   <style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+header {
+    background: #020617;
+    padding: 15px 25px;
+    font-size: 22px;
+    font-weight: bold;
+    border-bottom: 1px solid #1e293b;
+}
+
+.container {
+    display: flex;
+    height: calc(100vh - 60px);
+}
+
+.left {
+    width: 60%;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.right {
+    width: 40%;
+    padding: 20px;
+    border-left: 1px solid #1e293b;
+}
+
+h2 {
+    color: #38bdf8;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    background: #1e293b;
+    margin-bottom: 10px;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+button {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    margin-left: 5px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #dc2626;
+}
+
+.alert-active {
+    border: 2px solid red;
+    animation: blink 1s infinite;
+}
+
+.card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4); /* ADD THIS */
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+@keyframes blink {
+    50% { opacity: 0.5; }
+}
+</style>
+
+</head>
+<body>
+
+
+<header>
+🚨 Admin Control Center
+<button onclick="logout()" style="float:right;">Logout</button>
+</header>
+
+<div class="container">
+
+<!-- LEFT SIDE -->
+<div class="left">
+
+  <div class="card">
+    <h2>🚨 Live Alerts</h2>
+    <button onclick="loadAlerts()">Refresh</button>
+    <ul id="alertList"></ul>
+  </div>
+
+  <div class="card">
+    <h2>📢 Complaints</h2>
+    <ul id="complaintList"></ul>
+  </div>
+
+</div>
+
+<!-- RIGHT SIDE -->
+<div class="right">
+
+  <div class="card">
+    <h2>👤 Manage Users</h2>
+
+    <input id="newUserId" placeholder="User ID"><br><br>
+    <input id="newPassword" placeholder="Password"><br><br>
+    <button onclick="createUser()">Create User</button>
+
+    <hr style="margin:15px 0;">
+
+    <input id="searchBox" placeholder="Search user" oninput="searchUser()">
+    <ul id="searchResults"></ul>
+  </div>
+
+  <div class="card">
+    <h2>✏️ Edit Profile</h2>
+
+    <div id="profileBox" style="display:none;">
+
+      <input id="p_userId" disabled><br><br>
+
+      <input id="p_name" placeholder="Name"><br>
+      <input id="p_sex" placeholder="Sex"><br>
+      <input id="p_age" placeholder="Age"><br>
+      <input id="p_mobile" placeholder="Mobile"><br>
+      <input id="p_address" placeholder="Address"><br>
+      <input id="p_blood" placeholder="Blood Group"><br>
+
+      <textarea id="p_desc" placeholder="Description"></textarea><br><br>
+
+      <input id="p_password" placeholder="New Password"><br><br>
+
+      <button onclick="saveProfile()">Save</button>
+      <button onclick="closeProfile()">Close</button>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📄 Alert Details</h2>
+
+    <div id="alertProfile" style="display:none;">
+
+      <p><b>User:</b> <span id="a_user"></span></p>
+      <p><b>Name:</b> <span id="a_name"></span></p>
+      <p><b>Age:</b> <span id="a_age"></span></p>
+      <p><b>Blood:</b> <span id="a_blood"></span></p>
+      <p><b>Mobile:</b> <span id="a_mobile"></span></p>
+      <p><b>Address:</b> <span id="a_address"></span></p>
+      <p><b>Description:</b> <span id="a_desc"></span></p>
+
+      <button onclick="closeAlertProfile()">Close</button>
+
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<audio id="siren" src="/audio/alarm.mp3" loop></audio>
+
+
+
+
+<script>
+let audioUnlocked = false;
+window.addEventListener("load", () => {
+    const siren = document.getElementById("siren");
+
+    siren.play().then(() => {
+        siren.pause();
+        siren.currentTime = 0;
+        audioUnlocked = true;
+        console.log("✅ Audio unlocked on load");
+    }).catch(() => {
+        console.log("❌ Autoplay blocked — click once");
+    });
+});
+
+const token = localStorage.getItem("adminToken");
+
+if (!token) {
+  alert("Please login first");
+  window.location.href = "login.html";
+}
+
+const payload = JSON.parse(atob(token.split(".")[1]));
+
+if (payload.role !== "admin") {
+  alert("Admins only");
+  window.location.href = "login.html";
+}
+
+let lastAlertTime = null;
+
+
+
+document.addEventListener("click", () => {
+    if (!audioUnlocked) {
+        const siren = document.getElementById("siren");
+        siren.play().then(() => {
+            siren.pause();
+            siren.currentTime = 0;
+            audioUnlocked = true;
+            console.log("Audio unlocked ✅");
+        }).catch(() => {});
+    }
+});
+
+let playedAlerts = new Set();
+let handledAlerts = new Set(
+  JSON.parse(localStorage.getItem("handledAlerts") || "[]")
+);
+
+async function loadAlerts() {
+    const token = localStorage.getItem("adminToken");
+
+    const res = await fetch("http://localhost:5000/api/alert/all", {
+        headers: {
+            "Authorization": token
+        }
+    });
+
+    console.log("STATUS:", res.status); // 👈 ADD THIS
+
+    if (!res.ok) {
+        const text = await res.text();
+        console.log("ERROR:", text);
+        return;
+    }
+
+    const data = await res.json();
+    console.log("DATA:", data);
+
+    const list = document.getElementById("alertList");
+    list.innerHTML = "";
+
+    data.forEach(alert => {
+    const li = document.createElement("li");  
+    li.setAttribute("data-id", alert._id);
+
+    li.innerHTML = `
+  <b>${alert.userId}</b><br>
+  <small>${new Date(alert.timestamp).toLocaleString()}</small><br>
+
+  <button onclick='viewProfileDirect(${JSON.stringify(alert.userProfile)})'>View</button>
+  <button onclick="deleteAlert('${alert._id}')">Delete</button>
+`;
+li.classList.add("alert-item");
+
+
+
+    // 🚨 EMERGENCY STYLE + SOUND
+    const alertId = alert._id;
+
+    if (alert.type && alert.type.toLowerCase() === "emergency" && !handledAlerts.has(alertId)) {
+     li.classList.add("alert-active");
+     // 🔊 SOUND LOGIC (PUT THIS HERE)
+    if (!playedAlerts.has(alert._id)) {
+
+    const siren = document.getElementById("siren");
+
+    console.log("🚨 alert detected");
+    console.log("audioUnlocked:", audioUnlocked);
+
+    if (audioUnlocked) {
+        siren.currentTime = 0;
+        siren.play().then(() => {
+            console.log("🔊 SOUND PLAYED");
+            playedAlerts.add(alert._id); // ✅ MOVE HERE
+        }).catch(err => {
+            console.log("PLAY ERROR:", err);
+        });
+    } else {
+        console.log("❌ Audio still locked — click once");
+    }
+}
+}
+
+    list.appendChild(li);
+    
+});
+    
+}
+
+// auto refresh every 3 seconds
+setInterval(loadAlerts, 3000);
+
+// load immediately
+loadAlerts();
+
+async function loadComplaints() {
+    const token = localStorage.getItem("adminToken");
+
+const res = await fetch("http://localhost:5000/api/complaint/all", {
+    headers: {
+        "Authorization": token
+    }
+});
+    if (!res.ok) {
+    const text = await res.text();
+    console.log("ERROR:", text);
+    return;
+}
+
+const data = await res.json();
+
+    const list = document.getElementById("complaintList");
+    list.innerHTML = "";
+
+    data.forEach(c => {
+        const li = document.createElement("li"); 
+        li.setAttribute("data-id", c._id); 
+        li.innerHTML = `
+    User: ${c.userId} | ${c.type} | ${c.description} | 
+    <b style="color:${c.status === 'Resolved' ? 'green' : 'red'}">${c.status}</b>
+
+    ${c.response ? `<br><i>Admin: ${c.response}</i>` : ""}
+
+    ${c.status === "Pending" 
+    ? `<button onclick="resolveComplaint('${c._id}')">Resolve</button>` 
+    : `<button onclick="deleteComplaint('${c._id}')">Delete</button>`
+}
+`;
+        list.appendChild(li);
+    });
+}
+
+setInterval(loadComplaints, 3000);
+loadComplaints();
+
+async function resolveComplaint(id) {
+    const token = localStorage.getItem("adminToken");
+
+    const message = prompt("Enter response (e.g. Plumber sent)");
+
+    if (!message) return;
+
+    await fetch(`http://localhost:5000/api/complaint/resolve/${id}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": token
+        },
+        body: JSON.stringify({ message })
+    });
+
+    alert("Marked as resolved");
+    loadComplaints();
+}
+</script>
+<script>
+function logout() {
+  localStorage.removeItem("adminToken");
+  window.location.href = "login.html";
+}
+</script>
+<script>
+async function createUser() {
+  const userId = document.getElementById("newUserId").value;
+  const password = document.getElementById("newPassword").value;
+  const token = localStorage.getItem("adminToken");
+
+  const res = await fetch("http://localhost:5000/api/auth/create-user", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": token
+    },
+    body: JSON.stringify({ userId, password })
+  });
+
+  const data = await res.json();
+  alert(data.message);
+}
+
+async function changePassword() {
+  const userId = document.getElementById("changeUserId").value;
+  const newPassword = document.getElementById("changePassword").value;
+  const token = localStorage.getItem("adminToken");
+
+  const res = await fetch("http://localhost:5000/api/auth/change-password", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": token
+    },
+    body: JSON.stringify({ userId, newPassword })
+  });
+
+  const data = await res.json();
+  alert(data.message);
+}
+</script>
+
+<script>
+async function searchUser() {
+  const q = document.getElementById("searchBox").value;
+  const token = localStorage.getItem("adminToken");
+
+  if (!q) return;
+
+  const res = await fetch(`http://localhost:5000/api/auth/search?q=${q}`, {
+    headers: { Authorization: token }
+  });
+
+  const users = await res.json();
+
+  const list = document.getElementById("searchResults");
+  list.innerHTML = "";
+
+  users.forEach(u => {
+    const li = document.createElement("li");  
+    li.setAttribute("data-id", alert._id);
+
+    li.innerHTML = `
+      ${u.userId}
+      <button onclick="editUser('${u.userId}')">Edit</button>
+      <button onclick="deleteUser('${u.userId}')">Delete</button>
+    `;
+
+    list.appendChild(li);
+  });
+}
+
+async function deleteUser(userId) {
+  const token = localStorage.getItem("adminToken");
+
+  await fetch(`http://localhost:5000/api/auth/delete-user/${userId}`, {
+    method: "DELETE",
+    headers: { Authorization: token }
+  });
+
+  alert("Deleted");
+  searchUser();
+}
+
+let currentUserId = null;
+
+async function editUser(userId) {
+  const token = localStorage.getItem("adminToken");
+
+  const res = await fetch(`http://localhost:5000/api/auth/search?q=${userId}`, {
+    headers: { Authorization: token }
+  });
+
+  const users = await res.json();
+  const u = users[0];
+
+  currentUserId = userId;
+
+  document.getElementById("profileBox").style.display = "block";
+
+  document.getElementById("p_userId").value = u.userId;
+  document.getElementById("p_name").value = u.name || "";
+  document.getElementById("p_sex").value = u.sex || "";
+  document.getElementById("p_age").value = u.age || "";
+  document.getElementById("p_mobile").value = u.mobile || "";
+  document.getElementById("p_address").value = u.address || "";
+  document.getElementById("p_blood").value = u.bloodGroup || "";
+  document.getElementById("p_desc").value = u.description || "";
+}
+
+async function saveProfile() {
+  const token = localStorage.getItem("adminToken");
+
+  const updates = {
+    name: document.getElementById("p_name").value,
+    sex: document.getElementById("p_sex").value,
+    age: document.getElementById("p_age").value,
+    mobile: document.getElementById("p_mobile").value,
+    address: document.getElementById("p_address").value,
+    bloodGroup: document.getElementById("p_blood").value,
+    description: document.getElementById("p_desc").value
+  };
+
+  const password = document.getElementById("p_password").value;
+  if (password) updates.password = password;
+
+  await fetch("http://localhost:5000/api/auth/update-user", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": token
+    },
+    body: JSON.stringify({
+      userId: currentUserId,
+      updates
+    })
+  });
+
+  alert("Profile Updated");
+  closeProfile();
+  searchUser();
+}
+
+function closeProfile() {
+  document.getElementById("profileBox").style.display = "none";
+}
+
+async function viewProfile(userId) {
+
+  // 🛑 STOP AUDIO
+    const siren = document.getElementById("siren");
+    if (siren) {
+        siren.pause();
+        siren.currentTime = 0;
+    }
+
+    // 🛑 REMOVE ALERT HIGHLIGHT (your flash class)
+    document.querySelectorAll(".alert-item").forEach(el => {
+        el.classList.remove("alert-active"); // or whatever class you used
+    });
+
+    console.log("✅ Alert acknowledged");
+
+  const token = localStorage.getItem("adminToken");
+
+  const res = await fetch(`http://localhost:5000/api/auth/search?q=${userId}`, {
+    headers: { Authorization: token }
+  });
+
+  const users = await res.json();
+  const u = users[0];
+
+  document.getElementById("alertProfile").style.display = "block";
+
+  document.getElementById("a_user").innerText = u.userId;
+  document.getElementById("a_name").innerText = u.name || "-";
+  document.getElementById("a_age").innerText = u.age || "-";
+  document.getElementById("a_blood").innerText = u.bloodGroup || "-";
+  document.getElementById("a_mobile").innerText = u.mobile || "-";
+  document.getElementById("a_address").innerText = u.address || "-";
+  document.getElementById("a_desc").innerText = u.description || "-";
+}
+function closeAlertProfile() {
+  document.getElementById("alertProfile").style.display = "none";
+}
+
+function viewProfileDirect(u) {
+  // mark ALL alerts as handled (simple version)
+document.querySelectorAll("#alertList li").forEach((li, index) => {
+  const alertId = li.getAttribute("data-id");
+  if (alertId) handledAlerts.add(alertId);
+});
+  // 🛑 STOP AUDIO
+  const siren = document.getElementById("siren");
+  if (siren) {
+    siren.pause();
+    siren.currentTime = 0;
+  }
+  // store all current alert IDs as handled
+document.querySelectorAll("#alertList li").forEach(li => {
+  const id = li.getAttribute("data-id");
+  if (id) handledAlerts.add(id);
+});
+
+// save to localStorage
+localStorage.setItem("handledAlerts", JSON.stringify([...handledAlerts]));
+  // 🛑 REMOVE HIGHLIGHT FROM ALL ALERTS
+document.querySelectorAll("#alertList li").forEach(li => {
+  li.classList.remove("alert-active");
+});
+
+  console.log("✅ Alert acknowledged");
+  if (!u) {
+    alert("No profile data available");
+    return;
+  }
+
+  document.getElementById("alertProfile").style.display = "block";
+
+  document.getElementById("a_user").innerText = "-";
+  document.getElementById("a_name").innerText = u.name || "-";
+  document.getElementById("a_age").innerText = u.age || "-";
+  document.getElementById("a_blood").innerText = u.bloodGroup || "-";
+  document.getElementById("a_mobile").innerText = u.mobile || "-";
+  document.getElementById("a_address").innerText = u.address || "-";
+  document.getElementById("a_desc").innerText = u.description || "-";
+}
+</script>
+<script>
+async function deleteAlert(id) {
+  const token = localStorage.getItem("adminToken");
+
+  await fetch(`http://localhost:5000/api/alert/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: token
+    }
+  });
+
+  loadAlerts();
+}
+async function deleteComplaint(id) {
+  const token = localStorage.getItem("adminToken");
+
+  if (!confirm("Delete this resolved complaint?")) return;
+
+  const res = await fetch(`http://localhost:5000/api/complaint/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: token
+    }
+  });
+
+  const data = await res.json();
+  alert(data.message);
+
+  loadComplaints();
+}
+</script>
+
+
+</body>
+</html>

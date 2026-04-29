@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <meta charset="UTF-8">
+   <style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+header {
+    background: #020617;
+    padding: 15px 25px;
+    font-size: 22px;
+    font-weight: bold;
+    border-bottom: 1px solid #1e293b;
+    position: sticky;
+    top: 0;
+}
+
+/* LAYOUT */
+.container {
+    display: flex;
+    padding: 20px;
+    gap: 20px;
+}
+
+.left, .right {
+    flex: 1;
+}
+
+/* CARDS */
+.card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    transition: 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+h2 {
+    color: #38bdf8;
+}
+
+/* INPUTS */
+textarea, select, input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    margin-top: 8px;
+    margin-bottom: 12px;
+}
+
+/* BUTTONS */
+button {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+/* EMERGENCY */
+.emergency-btn {
+    width: 100%;
+    font-size: 28px;
+    padding: 25px;
+    background: linear-gradient(135deg, #ff0000, #ef4444);
+    box-shadow: 0 0 20px rgba(255,0,0,0.4);
+}
+
+.emergency-btn:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 30px rgba(255,0,0,0.7);
+}
+
+/* LIST */
+li {
+    background: #1e293b;
+    margin-bottom: 12px;
+    padding: 14px;
+    border-radius: 10px;
+}
+
+</style>
+</head>
+<body>
+<header>
+🚨 Emergency Dashboard
+<button onclick="logout()" style="float:right;">Logout</button>
+</header>
+
+<div class="container">
+
+<!-- LEFT -->
+<div class="left">
+
+  <div class="card">
+    <button class="emergency-btn" onclick="sendAlert()">🚨 EMERGENCY</button>
+  </div>
+
+  <div class="card">
+    <h2>📢 Submit Complaint</h2>
+
+    <select id="type">
+      <option value="Plumbing">Plumbing</option>
+      <option value="Electrical">Electrical</option>
+      <option value="Trespassing">Trespassing</option>
+    </select>
+
+    <textarea id="desc" placeholder="Describe the issue"></textarea>
+
+    <button onclick="sendComplaint()">Submit Complaint</button>
+  </div>
+
+  <div class="card">
+    <h2>Your Complaints</h2>
+    <ul id="userComplaints"></ul>
+  </div>
+
+</div>
+
+<!-- RIGHT -->
+<div class="right">
+
+  <div class="card">
+    <h2>Your Alerts</h2>
+    <ul id="userAlerts"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Your Profile</h2>
+    <div id="profileView"></div>
+  </div>
+
+  <div class="card">
+    <h3>Edit Profile</h3>
+
+    <div id="userProfile">
+      <input id="u_name" placeholder="Name">
+      <input id="u_mobile" placeholder="Mobile">
+      <input id="u_address" placeholder="Address">
+      <input id="u_blood" placeholder="Blood Group">
+      <textarea id="u_desc" placeholder="Medical / Description"></textarea>
+
+      <button onclick="saveMyProfile()">Save Profile</button>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<script>
+const token = localStorage.getItem("userToken");
+
+if (!token) {
+  alert("Please login first");
+  window.location.href = "login.html";
+}
+
+const payload = JSON.parse(atob(token.split(".")[1]));
+
+if (payload.role !== "user") {
+  alert("Access denied");
+  window.location.href = "login.html";
+}
+</script>
+
+
+
+<script>
+async function sendAlert() {
+    
+
+    const token = localStorage.getItem("userToken");
+
+const res = await fetch("http://localhost:5000/api/alert/send", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "Authorization": token   // 🔑 ADD THIS
+    },
+        body: JSON.stringify({ })
+    });
+
+    const data = await res.json();
+    alert(data.message);
+}
+</script>
+
+
+
+
+
+
+
+
+
+
+<script>
+async function sendComplaint() {
+    try {
+        
+
+        const type = document.getElementById("type").value;
+        const description = document.getElementById("desc").value;
+
+        const token = localStorage.getItem("userToken");
+
+const res = await fetch("http://localhost:5000/api/complaint/create", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "Authorization": token   // 🔑 ADD THIS
+    },
+            body: JSON.stringify({  type, description })
+        });
+
+        const text = await res.text();   // 👈 IMPORTANT
+        console.log("RAW RESPONSE:", text);
+
+        const data = JSON.parse(text);   // parse manually
+
+        alert(data.message);
+    } catch (err) {
+        console.error("ERROR:", err);
+        alert("Something went wrong. Check console.");
+    }
+}
+</script>
+
+
+
+
+<script>
+
+async function loadUserComplaints() {
+    const token = localStorage.getItem("userToken");
+
+    const res = await fetch("http://localhost:5000/api/complaint/my", {
+        headers: { Authorization: token }
+    });
+
+    if (!res.ok) {
+        const text = await res.text();
+        console.log("ERROR complaints:", text);
+        return;
+    }
+
+    const data = await res.json();
+
+    const list = document.getElementById("userComplaints");
+    list.innerHTML = "";
+
+    data.forEach(c => {
+        const li = document.createElement("li");
+
+        li.innerHTML = `
+            ${c.type} | ${c.description} | 
+            <b style="color:${c.status === 'Resolved' ? 'green' : 'orange'}">${c.status}</b>
+            ${c.response ? `<br><i>Response: ${c.response}</i>` : ""}
+            <br>
+            <button onclick="deleteComplaint('${c._id}')">Delete</button>
+        `;
+
+        list.appendChild(li);
+    });
+}
+
+setInterval(loadUserComplaints, 3000);
+loadUserComplaints();
+</script>
+<script>
+async function loadUserAlerts() {
+    const token = localStorage.getItem("userToken");
+
+    const res = await fetch("http://localhost:5000/api/alert/my", {
+        headers: { Authorization: token }
+    });
+
+    if (!res.ok) {
+        const text = await res.text();
+        console.log("ERROR alerts:", text);
+        return;
+    }
+
+    const data = await res.json();
+
+    const list = document.getElementById("userAlerts");
+    list.innerHTML = "";
+
+    data.forEach(a => {
+        const li = document.createElement("li");
+        li.textContent = `Alert sent at ${new Date(a.timestamp).toLocaleString()}`;
+        list.appendChild(li);
+    });
+}
+
+setInterval(loadUserAlerts, 3000);
+loadUserAlerts();
+</script>
+<script>
+function logout() {
+  localStorage.removeItem("userToken");
+  window.location.href = "login.html";
+}
+
+async function loadMyProfile() {
+  const token = localStorage.getItem("userToken");
+
+  const res = await fetch("http://localhost:5000/api/auth/me", {
+    headers: { Authorization: token }
+  });
+
+  if (!res.ok) {
+    console.log("Failed to load profile");
+    return;
+  }
+
+  const u = await res.json();
+
+  // 🔹 Fill form (edit mode)
+  document.getElementById("u_name").value = u.name || "";
+  document.getElementById("u_mobile").value = u.mobile || "";
+  document.getElementById("u_address").value = u.address || "";
+  document.getElementById("u_blood").value = u.bloodGroup || "";
+  document.getElementById("u_desc").value = u.description || "";
+
+  // 🔹 SHOW PROFILE (display mode)
+  document.getElementById("profileView").innerHTML = `
+    <h3>Profile Details</h3>
+    <p><b>Name:</b> ${u.name || "-"}</p>
+    <p><b>Mobile:</b> ${u.mobile || "-"}</p>
+    <p><b>Address:</b> ${u.address || "-"}</p>
+    <p><b>Blood Group:</b> <span style="color:red">${u.bloodGroup || "-"}</span></p>
+    <p><b>Medical Info:</b> ${u.description || "-"}</p>
+  `;
+}
+async function saveMyProfile() {
+  const token = localStorage.getItem("userToken");
+
+  const updates = {
+    name: document.getElementById("u_name").value,
+    mobile: document.getElementById("u_mobile").value,
+    address: document.getElementById("u_address").value,
+    bloodGroup: document.getElementById("u_blood").value,
+    description: document.getElementById("u_desc").value
+  };
+
+  await fetch("http://localhost:5000/api/auth/update-user", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": token
+    },
+    body: JSON.stringify({
+      updates
+    })
+  });
+
+  alert("Profile Updated");
+  loadMyProfile();   // 🔥 THIS LINE ADDED
+}
+
+loadMyProfile();
+</script>
+<script>
+async function deleteComplaint(id) {
+  const token = localStorage.getItem("userToken");
+
+  await fetch(`http://localhost:5000/api/complaint/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: token
+    }
+  });
+
+  loadUserComplaints();
+}
+</script>
+
+</body>
+</html>
