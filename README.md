@@ -106,7 +106,7 @@ You may create users via admin panel OR manually insert into DB.
 
 ## 👨‍💻 Author
 
-Built by [Your Name]
+Built by sudhin
 
 ---
 
