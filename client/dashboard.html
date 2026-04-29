@@ -193,9 +193,9 @@ async function sendAlert() {
 const res = await fetch("http://localhost:5000/api/alert/send", {
     method: "POST",
     headers: {
-        "Content-Type": "application/json",
-        "Authorization": token   // 🔑 ADD THIS
-    },
+  "Content-Type": "application/json",
+  "Authorization": "Bearer " + token
+},
         body: JSON.stringify({ })
     });
 
@@ -227,7 +227,7 @@ const res = await fetch("http://localhost:5000/api/complaint/create", {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
-        "Authorization": token   // 🔑 ADD THIS
+        "Authorization": "Bearer " + token // 🔑 ADD THIS
     },
             body: JSON.stringify({  type, description })
         });
@@ -254,7 +254,7 @@ async function loadUserComplaints() {
     const token = localStorage.getItem("userToken");
 
     const res = await fetch("http://localhost:5000/api/complaint/my", {
-        headers: { Authorization: token }
+        headers: { "Authorization": "Bearer " + token }
     });
 
     if (!res.ok) {
@@ -291,7 +291,7 @@ async function loadUserAlerts() {
     const token = localStorage.getItem("userToken");
 
     const res = await fetch("http://localhost:5000/api/alert/my", {
-        headers: { Authorization: token }
+        headers: { "Authorization": "Bearer " + token }
     });
 
     if (!res.ok) {
@@ -325,7 +325,7 @@ async function loadMyProfile() {
   const token = localStorage.getItem("userToken");
 
   const res = await fetch("http://localhost:5000/api/auth/me", {
-    headers: { Authorization: token }
+    headers: { "Authorization": "Bearer " + token }
   });
 
   if (!res.ok) {
@@ -387,7 +387,7 @@ async function deleteComplaint(id) {
   await fetch(`http://localhost:5000/api/complaint/${id}`, {
     method: "DELETE",
     headers: {
-      Authorization: token
+      "Authorization": "Bearer " + token
     }
   });
 

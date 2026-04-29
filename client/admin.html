@@ -184,25 +184,21 @@ button:hover {
 
 </div>
 
-<audio id="siren" src="/audio/alarm.mp3" loop></audio>
+<audio id="siren" src="audio/alarm.mp3" loop></audio>
 
 
 
 
 <script>
-let audioUnlocked = false;
-window.addEventListener("load", () => {
+document.addEventListener("click", () => {
     const siren = document.getElementById("siren");
 
     siren.play().then(() => {
         siren.pause();
         siren.currentTime = 0;
-        audioUnlocked = true;
-        console.log("✅ Audio unlocked on load");
-    }).catch(() => {
-        console.log("❌ Autoplay blocked — click once");
-    });
-});
+        console.log("✅ Audio unlocked");
+    }).catch(() => {});
+}, { once: true });
 
 const token = localStorage.getItem("adminToken");
 
@@ -222,17 +218,7 @@ let lastAlertTime = null;
 
 
 
-document.addEventListener("click", () => {
-    if (!audioUnlocked) {
-        const siren = document.getElementById("siren");
-        siren.play().then(() => {
-            siren.pause();
-            siren.currentTime = 0;
-            audioUnlocked = true;
-            console.log("Audio unlocked ✅");
-        }).catch(() => {});
-    }
-});
+
 
 let playedAlerts = new Set();
 let handledAlerts = new Set(
@@ -244,7 +230,7 @@ async function loadAlerts() {
 
     const res = await fetch("http://localhost:5000/api/alert/all", {
         headers: {
-            "Authorization": token
+            "Authorization": "Bearer " + token
         }
     });
 
@@ -288,19 +274,16 @@ li.classList.add("alert-item");
     const siren = document.getElementById("siren");
 
     console.log("🚨 alert detected");
-    console.log("audioUnlocked:", audioUnlocked);
+    
 
-    if (audioUnlocked) {
-        siren.currentTime = 0;
-        siren.play().then(() => {
-            console.log("🔊 SOUND PLAYED");
-            playedAlerts.add(alert._id); // ✅ MOVE HERE
-        }).catch(err => {
-            console.log("PLAY ERROR:", err);
-        });
-    } else {
-        console.log("❌ Audio still locked — click once");
-    }
+    siren.currentTime = 0;
+
+siren.play().then(() => {
+    console.log("🔊 SOUND PLAYED");
+    playedAlerts.add(alert._id);
+}).catch(err => {
+    console.log("❌ PLAY ERROR:", err);
+});
 }
 }
 
@@ -321,7 +304,7 @@ async function loadComplaints() {
 
 const res = await fetch("http://localhost:5000/api/complaint/all", {
     headers: {
-        "Authorization": token
+        "Authorization": "Bearer " + token
     }
 });
     if (!res.ok) {
@@ -367,7 +350,7 @@ async function resolveComplaint(id) {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": token
+            "Authorization": "Bearer " + token
         },
         body: JSON.stringify({ message })
     });
@@ -392,7 +375,7 @@ async function createUser() {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": token
+      "Authorization": "Bearer " + token
     },
     body: JSON.stringify({ userId, password })
   });
@@ -410,7 +393,7 @@ async function changePassword() {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": token
+      "Authorization": "Bearer " + token
     },
     body: JSON.stringify({ userId, newPassword })
   });
@@ -428,7 +411,7 @@ async function searchUser() {
   if (!q) return;
 
   const res = await fetch(`http://localhost:5000/api/auth/search?q=${q}`, {
-    headers: { Authorization: token }
+    headers: { Authorization: "Bearer " + token }
   });
 
   const users = await res.json();
@@ -455,7 +438,7 @@ async function deleteUser(userId) {
 
   await fetch(`http://localhost:5000/api/auth/delete-user/${userId}`, {
     method: "DELETE",
-    headers: { Authorization: token }
+    headers: { Authorization: "Bearer " + token }
   });
 
   alert("Deleted");
@@ -468,7 +451,7 @@ async function editUser(userId) {
   const token = localStorage.getItem("adminToken");
 
   const res = await fetch(`http://localhost:5000/api/auth/search?q=${userId}`, {
-    headers: { Authorization: token }
+    headers: { Authorization: "Bearer " + token }
   });
 
   const users = await res.json();
@@ -508,7 +491,7 @@ async function saveProfile() {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": token
+      "Authorization": "Bearer " + token
     },
     body: JSON.stringify({
       userId: currentUserId,
@@ -544,7 +527,7 @@ async function viewProfile(userId) {
   const token = localStorage.getItem("adminToken");
 
   const res = await fetch(`http://localhost:5000/api/auth/search?q=${userId}`, {
-    headers: { Authorization: token }
+    headers: { Authorization: "Bearer " + token }
   });
 
   const users = await res.json();
@@ -613,7 +596,7 @@ async function deleteAlert(id) {
   await fetch(`http://localhost:5000/api/alert/${id}`, {
     method: "DELETE",
     headers: {
-      Authorization: token
+      Authorization: "Bearer " + token
     }
   });
 
@@ -627,7 +610,7 @@ async function deleteComplaint(id) {
   const res = await fetch(`http://localhost:5000/api/complaint/${id}`, {
     method: "DELETE",
     headers: {
-      Authorization: token
+      Authorization: "Bearer " + token
     }
   });
 

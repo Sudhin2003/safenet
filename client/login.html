@@ -79,10 +79,11 @@ async function login() {
   const data = await res.json();
 
   if (!res.ok) {
-    alert(data.message || "Login failed");
+    alert(data.message);
     return;
   }
 
+  // 🔥 DECODE TOKEN
   const payload = JSON.parse(atob(data.token.split(".")[1]));
 
   if (payload.role === "admin") {
